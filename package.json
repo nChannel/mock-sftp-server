@@ -32,7 +32,9 @@
     }
   ],
   "dependencies": {
+    "checksum-stream": "^1.0.3",
     "debug": "^4.1.1",
+    "dev-null": "^0.1.1",
     "ssh2": "^0.8.5"
   },
   "devDependencies": {

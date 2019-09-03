@@ -8,16 +8,19 @@ const STATUS_CODE = ssh2.SFTP_STATUS_CODE;
 const path = require('path');
 let debug = require('debug')('test: sftpServer');
 const DEBUG_NOOP = function(msg) {};
+const checksumStream = require('checksum-stream');
+const devnull = require('dev-null');
 
 const fixturesdir = `${process.cwd()}/node_modules/ssh2/test/fixtures`;
 const HOST_KEY_RSA = fs.readFileSync(`${fixturesdir}/ssh_host_rsa_key`);
 
+const computedFileProperties = {};
 
 exports.sftpServer = (opts, fn) => {
   const port = opts.port || 4000;
   debug = opts.debug? debug : DEBUG_NOOP;
   const listing = opts.listing || [];
-  return new ssh2.Server({
+  const mockServer = new ssh2.Server({
     hostKeys: [{ key: HOST_KEY_RSA }],
     privateKey: HOST_KEY_RSA
   }, client => {
@@ -31,9 +34,10 @@ exports.sftpServer = (opts, fn) => {
       debug('Client authenticated');
       client.on('session', (accept, reject) => {
         const session = accept();
+        let checksumS;
         session.on('sftp', (accept, reject) => {
           debug('Client SFTP session');
-          let openFiles = {};
+          let openFiles = [];
           let handleCount = 0;
           const sftpStream = accept();
           let calledReadDir = false;
@@ -46,16 +50,27 @@ exports.sftpServer = (opts, fn) => {
           sftpStream.on('OPEN', (reqid, filename, flags, attrs) => {
             debug('Open');
             const handle = Buffer.alloc(4);
-            openFiles[handleCount] = true;
+            const handleNum = handleCount;
+            openFiles[handleNum] = true;
+            computedFileProperties[filename] = {};
             handle.writeUInt32BE(handleCount++, 0, true);
             sftpStream.handle(reqid, handle);
             debug('Opening file for read');
+            checksumS = checksumStream({algorithm: 'sha256'});
+            checksumS.on('digest', digest => {
+              computedFileProperties[filename].sha256 = digest;
+            });
+            checksumS.on('size', size => {
+              computedFileProperties[filename].size = size;
+            }).pipe(devnull())
           });
           sftpStream.on('WRITE', (reqid, handle, offset, data) => {
             if (handle.length !== 4 || !openFiles[handle.readUInt32BE(0, true)])
               return sftpStream.status(reqid, STATUS_CODE.FAILURE);
-            sftpStream.status(reqid, STATUS_CODE.OK);
-            const inspected = require('util').inspect(data);
+            const canWriteMore = checksumS.write(data, err => {
+              sftpStream.status(reqid, STATUS_CODE.OK);
+            });
+             const inspected = require('util').inspect(data);
             debug('Write to file at offset %d: %s', offset, inspected);
           });
           sftpStream.on('READ', (reqid, handle, offset, length) => {
@@ -96,6 +111,7 @@ exports.sftpServer = (opts, fn) => {
           sftpStream.on('STAT', onSTAT);
           sftpStream.on('LSTAT', onSTAT);
           sftpStream.on('CLOSE', (reqid, handle) => {
+            checksumS.end();
             sftpStream.status(reqid, STATUS_CODE.OK);
             debug('Closing file');
           });
@@ -155,4 +171,11 @@ exports.sftpServer = (opts, fn) => {
     debug('Listening on port ' + this.address().port);
     fn();
   });
+  mockServer.computedFileSize = path => {
+    return computedFileProperties[path].size;
+  };
+  mockServer.computedSha256 = path => {
+    return computedFileProperties[path].sha256;
+  };
+  return mockServer;
 };

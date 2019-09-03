@@ -100,6 +100,8 @@ describe('Mock SFTP Server', () => {
     it('should upload file without error', done => {
       sftp.fastPut(`${process.cwd()}/test/fixtures/bar`, '/foo', err => {
         expect(err).to.not.exist;
+        expect(mockServer.computedFileSize('/foo')).to.equal(89);
+        expect(mockServer.computedSha256('/foo')).to.equal('065213cd0a07312fc8fac06d75dc09f2b34dfb0824fb241dc34763d811a4114c');
         done();
       });
     });
