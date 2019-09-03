@@ -4,7 +4,7 @@
   "description": "Creates mock sftp server using ssh2 for unit testing",
   "main": "sftpServer.js",
   "scripts": {
-    "test": "DEBUG=*,-mocha* mocha test"
+    "test": "mocha test"
   },
   "keywords": [
     "sftp",
