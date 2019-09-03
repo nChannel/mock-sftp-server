@@ -1,0 +1,12 @@
+version: '2'
+services:
+  sut:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    image: "sftp-service:test"
+    environment:
+      - NODE_ENV=dev
+      - SOURCE_BRANCH
+    volumes:
+      - ./reports:/usr/src/app/reports

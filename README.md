@@ -1,13 +1,13 @@
-[![Build Status](https://travis-ci.org/strumwolf/mock-sftp-server.svg?branch=master)](https://travis-ci.org/strumwolf/mock-sftp-server)
 
 # Description
-**mock-sftp-server** uses [ssh2's](https://www.npmjs.com/package/ssh2) server functionality to make a test sftp server for unit testing. This module will not act like a real sftp server and should only be used to test against.
+**mock-sftp-server** uses [ssh2's](https://www.npmjs.com/package/ssh2) server functionality to make a test sftp server for unit testing. 
+This module neither reads nor writes to the file system, and should only be used to test against.
 
 This is a work in progress and not all sftp functionlity has been added to the wrapper.
 
 # Usage
 ```javascript
-const sftp = require('../sftpServer');
+const mockSftp = require('@nchannel/mock-sftp-server');
 
 const listing = [
   {
@@ -23,9 +23,13 @@ const listing = [
   }
 ];
 const debug = false;
-const port = 4000
+const port = 4000;
 
-sftp.sftpServer({ listing, debug, port }, done);
+const mockSftpServer = mockSftp.sftpServer({ listing, debug, port }, done);
+
+// After writing a file to /foo
+expect(mockSftpServer.computedFileSize('/foo')).to.equal(42);
+expect(mockSftpServer.computedSha256('/foo')).to.equal('abcd3959');
 ```
 
 ## listing
