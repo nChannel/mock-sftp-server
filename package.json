@@ -1,6 +1,6 @@
 {
-  "name": "mock-sftp-server",
-  "version": "0.1.1",
+  "name": "@nchannel/mock-sftp-server",
+  "version": "0.2.0",
   "description": "Creates mock sftp server using ssh2 for unit testing",
   "main": "sftpServer.js",
   "scripts": {
@@ -14,16 +14,13 @@
     "unit",
     "test"
   ],
-  "author": {
-    "name": "Brian Kurtz",
-    "email": "lightsabre13@gmail.com"
-  },
+  "author": "developers@nchannel.com",
   "repository": {
     "type": "git",
-    "url": "git://github.com/strumwolf/mock-sftp-server.git"
+    "url": "https://github.com/nChannel/mock-sftp-server.git"
   },
   "bugs": {
-    "url": "http://github.com/strumwolf/mock-sftp-server/issues"
+    "url": "https://github.com/nChannel/mock-sftp-server/issues"
   },
   "licenses": [
     {
@@ -43,6 +40,6 @@
     "mocha": "^6.2.0"
   },
   "engines": {
-    "node": ">= 0.10.0"
+    "node": ">= 10.16.1"
   }
 }
