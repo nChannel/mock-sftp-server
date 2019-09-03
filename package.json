@@ -17,17 +17,11 @@
   "author": "developers@nchannel.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nChannel/mock-sftp-server.git"
+    "url": "git+https://github.com/nChannel/mock-sftp-server.git"
   },
   "bugs": {
     "url": "https://github.com/nChannel/mock-sftp-server/issues"
   },
-  "licenses": [
-    {
-      "type": "MIT",
-      "url": "http://www.opensource.org/licenses/MIT"
-    }
-  ],
   "dependencies": {
     "checksum-stream": "^1.0.3",
     "debug": "^4.1.1",
@@ -41,5 +35,10 @@
   },
   "engines": {
     "node": ">= 10.16.1"
-  }
+  },
+  "homepage": "https://github.com/nChannel/mock-sftp-server#readme",
+  "directories": {
+    "test": "test"
+  },
+  "license": "MIT"
 }
