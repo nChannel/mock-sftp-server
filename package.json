@@ -1,6 +1,6 @@
 {
   "name": "@nchannel/mock-sftp-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Creates mock sftp server using ssh2 for unit testing",
   "main": "sftpServer.js",
   "scripts": {
@@ -17,7 +17,7 @@
   "author": "developers@nchannel.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nChannel/mock-sftp-server.git"
+    "url": "https://github.com/nChannel/mock-sftp-server.git"
   },
   "bugs": {
     "url": "https://github.com/nChannel/mock-sftp-server/issues"
