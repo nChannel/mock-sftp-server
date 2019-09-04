@@ -20,4 +20,4 @@ steps:
   # publish components
   #
   - name: 'gcr.io/cloud-builders/npm'
-    args: ['publish', '--access' 'public']
+    args: ['publish', '--access', 'public']
