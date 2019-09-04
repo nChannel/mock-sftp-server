@@ -18,7 +18,7 @@ steps:
   args: ['-f', 'Docker-compose-test.yml', 'run', 'sut' ]
  
 - name: 'gcr.io/cloud-builders/npm'
-  args: ['login']
+  args: ['build']
 # npm auth
 #- name: 'gcr.io/cloud-builders/npm'
 #  args: ['config','set', '//registry.npmjs.org/:_authToken', "${_NPM_TOKEN}"]  
