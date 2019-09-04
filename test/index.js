@@ -48,6 +48,18 @@ describe('Mock SFTP Server', () => {
     });
   });
 
+  describe('computedFileSize', () => {
+    it('should throw intelligible error when no file has been sent to path', () => {
+      expect(() => mockServer.computedFileSize('/frobotz')).to.throw(RangeError, "never sent");
+    });
+  });
+
+  describe('computedSha256', () => {
+    it('should throw intelligible error when no file has been sent to path', () => {
+      expect(() => mockServer.computedSha256('/frobotz')).to.throw(RangeError, "never sent");
+    });
+  });
+
   describe('Connection to mock server', () => {
     let error, connected = false;
     before(done => {

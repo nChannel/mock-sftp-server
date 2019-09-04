@@ -172,10 +172,18 @@ exports.sftpServer = (opts, fn) => {
     fn();
   });
   mockServer.computedFileSize = path => {
-    return computedFileProperties[path].size;
+    if (computedFileProperties[path]) {
+      return computedFileProperties[path].size;
+    } else {
+      throw new RangeError("never sent " + path)
+    }
   };
   mockServer.computedSha256 = path => {
-    return computedFileProperties[path].sha256;
+    if (computedFileProperties[path]) {
+      return computedFileProperties[path].sha256;
+    } else {
+      throw new RangeError("never sent " + path)
+    }
   };
   return mockServer;
 };
