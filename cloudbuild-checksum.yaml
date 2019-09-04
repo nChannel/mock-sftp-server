@@ -1,27 +1,25 @@
 steps:
-- name: 'gcr.io/cloud-builders/gcloud'
-  args:
-  - kms
-  - decrypt
-  - --ciphertext-file=npmrc.enc
-  - --plaintext-file=/root/.npmrc
-  - --location=global
-  - --keyring=my-keyring
-  - --key=npm-key
-  volumes:
-  - name: 'home'
-    path: /root/
+#- name: 'gcr.io/cloud-builders/gcloud'
+#  args:
+#  - kms
+#  - decrypt
+#  - --ciphertext-file=npmrc.enc
+#  - --plaintext-file=/root/.npmrc
+#  - --location=global
+#  - --keyring=my-keyring
+#  - --key=npm-key
+#  volumes:
+#  - name: 'home'
+#    path: /root/
 #
 # Build and run unit tests
 #
 - name: 'docker/compose:1.18.0'
   args: ['-f', 'Docker-compose-test.yml', 'run', 'sut' ]
  
-- name: 'gcr.io/cloud-builders/npm'
-  args: ['build']
 # npm auth
-#- name: 'gcr.io/cloud-builders/npm'
-#  args: ['config','set', '//registry.npmjs.org/:_authToken', "${_NPM_TOKEN}"]  
+- name: 'gcr.io/cloud-builders/npm'
+  args: ['config','set', '//registry.npmjs.org/:_authToken', "${_NPM_TOKEN}"]  
 
 # npm auth scope
 #- name: 'gcr.io/cloud-builders/npm'
@@ -32,11 +30,11 @@ steps:
 
 #
 # publish components
-#
+##
 - name: 'gcr.io/cloud-builders/npm'
   args: ['publish']
-  env:
-  - HOME=/root/
-  volumes:
-  - name: 'home'
-    path: /root/
+#  env:
+#  - HOME=/root/
+#  volumes:
+#  - name: 'home'
+#    path: /root/
