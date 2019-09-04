@@ -6,7 +6,6 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
 # Install app dependencies
-ADD .npmrc /usr/src/app/.npmrc
 COPY package.json /usr/src/app/
 COPY package-lock.json /usr/src/app/
 RUN npm ci
@@ -14,9 +13,6 @@ RUN npm ci
 # Bundle app source
 COPY . /usr/src/app
 #RUN chmod +x ./docker-scripts/*.sh
-
-# Remove .npmrc
-RUN rm /usr/src/app/.npmrc
 
 WORKDIR /usr/src/app
 
