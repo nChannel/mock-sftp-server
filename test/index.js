@@ -103,8 +103,11 @@ describe('Mock SFTP Server', () => {
 
   describe('fastGet', () => {
     it('should download a file without error', done => {
+      const openedBefore = mockServer.getPathsOpened();
       sftp.fastGet('/foo', 'bar', err => {
         expect(err).to.not.exist;
+        const openedDuring = mockServer.getPathsOpened().slice(openedBefore.length);
+        expect(openedDuring).to.deep.equal(['/foo']);
         done();
       });
     });
@@ -112,9 +115,11 @@ describe('Mock SFTP Server', () => {
 
   describe('fastPut', () => {
     it('should upload file without error', done => {
+      const openedBefore = mockServer.getPathsOpened();
       sftp.fastPut(`${process.cwd()}/test/fixtures/bar`, '/spam', err => {
         expect(err).to.not.exist;
-        expect(mockServer.pathsOpened.filter(path => path === '/spam').length).to.equal(1);
+        const openedDuring = mockServer.getPathsOpened().slice(openedBefore.length);
+        expect(openedDuring).to.deep.equal(['/spam']);
         expect(mockServer.computedFileSize('/spam')).to.equal(89);
         expect(mockServer.computedSha256('/spam')).to.equal('065213cd0a07312fc8fac06d75dc09f2b34dfb0824fb241dc34763d811a4114c');
         done();

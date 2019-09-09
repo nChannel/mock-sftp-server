@@ -14,9 +14,11 @@ const devnull = require('dev-null');
 const fixturesdir = `${process.cwd()}/node_modules/ssh2/test/fixtures`;
 const HOST_KEY_RSA = fs.readFileSync(`${fixturesdir}/ssh_host_rsa_key`);
 
-const computedFileProperties = {};
 
 exports.sftpServer = (opts, fn) => {
+  const pathsOpened = [];
+  const computedFileProperties = {};
+
   const port = opts.port || 4000;
   debug = opts.debug? debug : DEBUG_NOOP;
   const listing = opts.listing || [];
@@ -52,7 +54,7 @@ exports.sftpServer = (opts, fn) => {
             const handle = Buffer.alloc(4);
             const handleNum = handleCount;
             openFiles[handleNum] = true;
-            mockServer.pathsOpened.push(filename);
+            pathsOpened.push(filename);
             computedFileProperties[filename] = {};
             handle.writeUInt32BE(handleCount++, 0, true);
             sftpStream.handle(reqid, handle);
@@ -172,7 +174,9 @@ exports.sftpServer = (opts, fn) => {
     debug('Listening on port ' + this.address().port);
     fn();
   });
-  mockServer.pathsOpened = [];
+  mockServer.getPathsOpened = () => {
+    return pathsOpened.slice(0);
+  };
   mockServer.computedFileSize = path => {
     if (computedFileProperties[path]) {
       return computedFileProperties[path].size;
