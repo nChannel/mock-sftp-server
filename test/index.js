@@ -1,3 +1,5 @@
+// TODO: restart server for each test
+
 'use strict';
 
 const assert = require('assert');
@@ -110,10 +112,11 @@ describe('Mock SFTP Server', () => {
 
   describe('fastPut', () => {
     it('should upload file without error', done => {
-      sftp.fastPut(`${process.cwd()}/test/fixtures/bar`, '/foo', err => {
+      sftp.fastPut(`${process.cwd()}/test/fixtures/bar`, '/spam', err => {
         expect(err).to.not.exist;
-        expect(mockServer.computedFileSize('/foo')).to.equal(89);
-        expect(mockServer.computedSha256('/foo')).to.equal('065213cd0a07312fc8fac06d75dc09f2b34dfb0824fb241dc34763d811a4114c');
+        expect(mockServer.pathsOpened.filter(path => path === '/spam').length).to.equal(1);
+        expect(mockServer.computedFileSize('/spam')).to.equal(89);
+        expect(mockServer.computedSha256('/spam')).to.equal('065213cd0a07312fc8fac06d75dc09f2b34dfb0824fb241dc34763d811a4114c');
         done();
       });
     });

@@ -52,6 +52,7 @@ exports.sftpServer = (opts, fn) => {
             const handle = Buffer.alloc(4);
             const handleNum = handleCount;
             openFiles[handleNum] = true;
+            mockServer.pathsOpened.push(filename);
             computedFileProperties[filename] = {};
             handle.writeUInt32BE(handleCount++, 0, true);
             sftpStream.handle(reqid, handle);
@@ -171,6 +172,7 @@ exports.sftpServer = (opts, fn) => {
     debug('Listening on port ' + this.address().port);
     fn();
   });
+  mockServer.pathsOpened = [];
   mockServer.computedFileSize = path => {
     if (computedFileProperties[path]) {
       return computedFileProperties[path].size;

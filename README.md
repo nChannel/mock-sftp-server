@@ -28,6 +28,8 @@ const port = 4000;
 const mockSftpServer = mockSftp.sftpServer({ listing, debug, port }, done);
 
 // After writing a file to /foo
+// If a path is written twice, it will appear twice in pathsOpened.
+expect(mockSftpServer.pathsOpened).to.deep.equal(['/foo']);
 expect(mockSftpServer.computedFileSize('/foo')).to.equal(42);
 expect(mockSftpServer.computedSha256('/foo')).to.equal('abcd3959');
 ```
