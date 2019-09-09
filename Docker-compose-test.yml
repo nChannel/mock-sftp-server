@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
-    image: "sftp-service:test"
+    image: "mock-sftp-server:test"
     environment:
       - NODE_ENV=dev
       - SOURCE_BRANCH
