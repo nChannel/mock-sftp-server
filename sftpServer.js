@@ -58,7 +58,7 @@ exports.sftpServer = (opts, fn) => {
             computedFileProperties[filename] = {};
             handle.writeUInt32BE(handleCount++, 0, true);
             sftpStream.handle(reqid, handle);
-            debug('Opening file for read');
+            debug('Opening file for read or write');
             checksumS = checksumStream({algorithm: 'sha256'});
             checksumS.on('digest', digest => {
               computedFileProperties[filename].sha256 = digest;
@@ -114,7 +114,9 @@ exports.sftpServer = (opts, fn) => {
           sftpStream.on('STAT', onSTAT);
           sftpStream.on('LSTAT', onSTAT);
           sftpStream.on('CLOSE', (reqid, handle) => {
-            checksumS.end();
+            if (checksumS) {
+              checksumS.end();
+            }
             sftpStream.status(reqid, STATUS_CODE.OK);
             debug('Closing file');
           });
