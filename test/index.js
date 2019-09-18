@@ -148,6 +148,27 @@ describe('Mock SFTP Server', () => {
     });
   });
 
+  describe('mkdir', () => {
+    it('should not return error when passed string', done => {
+      const numCreatedBefore = mockServer.getDirectoriesCreated().length;
+      sftp.mkdir('quux', err => {
+        expect(err).to.not.exist;
+        const createdDuring = mockServer.getDirectoriesCreated().slice(numCreatedBefore);
+        expect(createdDuring).to.deep.equal(['quux']);
+        done();
+      });
+    });
+    it('should return error when passed zero-length string', done => {
+      const numCreatedBefore = mockServer.getDirectoriesCreated().length;
+      sftp.mkdir('', err => {
+        expect(err).to.exist;
+        const createdDuring = mockServer.getDirectoriesCreated().slice(numCreatedBefore);
+        expect(createdDuring).to.deep.equal([]);
+        done();
+      });
+    });
+  });
+
   describe('unlink', () => {
     it('should remove a remote file without error', done => {
       sftp.unlink('/foo/bar', err => {

@@ -19,6 +19,7 @@ exports.sftpServer = (opts, fn) => {
   const pathsOpened = [];
   const computedFileProperties = {};
   const renamedFiles = {};
+  const directoriesCreated = [];
 
   const port = opts.port || 4000;
   debug = opts.debug? debug : DEBUG_NOOP;
@@ -103,6 +104,15 @@ exports.sftpServer = (opts, fn) => {
               });
             }
             else sftpStream.status(reqid, STATUS_CODE.EOF);
+          });
+          // MKDIR
+          sftpStream.on('MKDIR', (reqid, path) => {
+            if (path.length > 0) {
+              directoriesCreated.push(path);
+              sftpStream.status(reqid, STATUS_CODE.OK);
+            } else {
+              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+            }
           });
           sftpStream.on('REALPATH', (reqid, path) => {
             const name = [{
@@ -198,6 +208,10 @@ exports.sftpServer = (opts, fn) => {
 
   mockServer.getRenamedFiles = () => {
     return Object.assign({}, renamedFiles);   // shallow clone
+  };
+
+  mockServer.getDirectoriesCreated = () => {
+    return directoriesCreated.slice(0);
   };
 
   return mockServer;

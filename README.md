@@ -27,11 +27,19 @@ const port = 4000;
 
 const mockSftpServer = mockSftp.sftpServer({ listing, debug, port }, done);
 
-// After writing a file to /foo
-// If a path is written twice, it will appear twice in pathsOpened.
-expect(mockSftpServer.pathsOpened).to.deep.equal(['/foo']);
+// after writing a file to /foo
+// If a path is written twice, it will appear twice.
+expect(mockSftpServer.getPathsOpened()).to.deep.equal(['/foo']);
 expect(mockSftpServer.computedFileSize('/foo')).to.equal(42);
 expect(mockSftpServer.computedSha256('/foo')).to.equal('abcd3959');
+
+// after renaming a file from /kung/bar to /kung/foo
+expect(mockSftpServer.getRenamedFiles()).to.deep.equal({'/kung/bar': '/kung/foo'});
+
+// after creating the directory quux
+// Directories are listed in the order created.
+expect(mockSftpServer.getDirectoriesCreated()).to.deep.equal(['quux']);
+
 ```
 
 ## listing
@@ -50,7 +58,7 @@ This is your desired port of the mock server.
 Defaults to `port 4000`.
 
 ## Current server functionality
-As of now, you can only run `connect`, `fastGet`, `fastPut`, `readdir`, `unlink`, `rename` and `end` from your client to the mock server.
+As of now, you can only run `connect`, `fastGet`, `fastPut`, `readdir`, `mkdir`, `unlink`, `rename` and `end` from your client to the mock server.
 
 `fastGet`, `fastPut`, `readdir`, `unlink`, `rename` requires you to get the `sftp` method from the client.
 
