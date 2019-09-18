@@ -20,6 +20,7 @@ exports.sftpServer = (opts, fn) => {
   const computedFileProperties = {};
   const renamedFiles = {};
   const directoriesCreated = [];
+  const directoriesRemoved = [];
 
   const port = opts.port || 4000;
   debug = opts.debug? debug : DEBUG_NOOP;
@@ -105,10 +106,17 @@ exports.sftpServer = (opts, fn) => {
             }
             else sftpStream.status(reqid, STATUS_CODE.EOF);
           });
-          // MKDIR
           sftpStream.on('MKDIR', (reqid, path) => {
             if (path.length > 0) {
               directoriesCreated.push(path);
+              sftpStream.status(reqid, STATUS_CODE.OK);
+            } else {
+              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+            }
+          });
+          sftpStream.on('RMDIR', (reqid, path) => {
+            if (path.length > 0) {
+              directoriesRemoved.push(path);
               sftpStream.status(reqid, STATUS_CODE.OK);
             } else {
               sftpStream.status(reqid, STATUS_CODE.FAILURE);
@@ -212,6 +220,10 @@ exports.sftpServer = (opts, fn) => {
 
   mockServer.getDirectoriesCreated = () => {
     return directoriesCreated.slice(0);
+  };
+
+  mockServer.getDirectoriesRemoved = () => {
+    return directoriesRemoved.slice(0);
   };
 
   return mockServer;

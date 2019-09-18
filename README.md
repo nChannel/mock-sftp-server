@@ -40,6 +40,10 @@ expect(mockSftpServer.getRenamedFiles()).to.deep.equal({'/kung/bar': '/kung/foo'
 // Directories are listed in the order created.
 expect(mockSftpServer.getDirectoriesCreated()).to.deep.equal(['quux']);
 
+// after removing the directory flux
+// Directories are listed in the order created.
+expect(mockSftpServer.getDirectoriesCreated()).to.deep.equal(['flux']);
+
 ```
 
 ## listing
@@ -58,9 +62,9 @@ This is your desired port of the mock server.
 Defaults to `port 4000`.
 
 ## Current server functionality
-As of now, you can only run `connect`, `fastGet`, `fastPut`, `readdir`, `mkdir`, `unlink`, `rename` and `end` from your client to the mock server.
+As of now, you can only run `connect`, `fastGet`, `fastPut`, `readdir`, `mkdir`, `rmdir`, `unlink`, `rename` and `end` from your client to the mock server.
 
-`fastGet`, `fastPut`, `readdir`, `unlink`, `rename` requires you to get the `sftp` method from the client.
+All but `connect` and `end` requires you to get the `sftp` object from the client.
 
 ```javascript
 conn.sftp((err, sftp) => {

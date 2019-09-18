@@ -149,7 +149,7 @@ describe('Mock SFTP Server', () => {
   });
 
   describe('mkdir', () => {
-    it('should not return error when passed string', done => {
+    it('should succeed when passed valid path', done => {
       const numCreatedBefore = mockServer.getDirectoriesCreated().length;
       sftp.mkdir('quux', err => {
         expect(err).to.not.exist;
@@ -164,6 +164,27 @@ describe('Mock SFTP Server', () => {
         expect(err).to.exist;
         const createdDuring = mockServer.getDirectoriesCreated().slice(numCreatedBefore);
         expect(createdDuring).to.deep.equal([]);
+        done();
+      });
+    });
+  });
+
+  describe('rmdir', () => {
+    it('should succeed when passed valid path', done => {
+      const numRemovedBefore = mockServer.getDirectoriesRemoved().length;
+      sftp.rmdir('flux', err => {
+        expect(err).to.not.exist;
+        const removedDuring = mockServer.getDirectoriesRemoved().slice(numRemovedBefore);
+        expect(removedDuring).to.deep.equal(['flux']);
+        done();
+      });
+    });
+    it('should return error when passed zero-length string', done => {
+      const numRemovedBefore = mockServer.getDirectoriesRemoved().length;
+      sftp.rmdir('', err => {
+        expect(err).to.exist;
+        const removedDuring = mockServer.getDirectoriesRemoved().slice(numRemovedBefore);
+        expect(removedDuring).to.deep.equal([]);
         done();
       });
     });
