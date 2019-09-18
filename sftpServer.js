@@ -18,6 +18,7 @@ const HOST_KEY_RSA = fs.readFileSync(`${fixturesdir}/ssh_host_rsa_key`);
 exports.sftpServer = (opts, fn) => {
   const pathsOpened = [];
   const computedFileProperties = {};
+  const renamedFiles = {};
 
   const port = opts.port || 4000;
   debug = opts.debug? debug : DEBUG_NOOP;
@@ -124,6 +125,7 @@ exports.sftpServer = (opts, fn) => {
             sftpStream.status(reqid, STATUS_CODE.OK);
           });
           sftpStream.on('RENAME', (reqid, oldPath, newPath) => {
+            renamedFiles[oldPath] = newPath;
             sftpStream.status(reqid, STATUS_CODE.OK);
           });
 
@@ -193,5 +195,10 @@ exports.sftpServer = (opts, fn) => {
       throw new RangeError("never sent " + path)
     }
   };
+
+  mockServer.getRenamedFiles = () => {
+    return Object.assign({}, renamedFiles);   // shallow clone
+  };
+
   return mockServer;
 };

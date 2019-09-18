@@ -161,6 +161,7 @@ describe('Mock SFTP Server', () => {
     it('should rename a remote file without error', done => {
       sftp.rename('/kung/bar', '/kung/foo', err => {
         expect(err).to.not.exist;
+        expect(mockServer.getRenamedFiles()).to.deep.equal({'/kung/bar': '/kung/foo'});
         done();
       });
     });
