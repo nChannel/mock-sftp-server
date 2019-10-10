@@ -5,7 +5,7 @@ const fs = require('fs');
 const ssh2 = require('ssh2');
 const OPEN_MODE = ssh2.SFTP_OPEN_MODE;
 const STATUS_CODE = ssh2.SFTP_STATUS_CODE;
-const path = require('path');
+const path = require('path').posix;
 let debug = require('debug')('test: sftpServer');
 const DEBUG_NOOP = function(msg) {};
 const checksumStream = require('checksum-stream');
@@ -143,6 +143,11 @@ exports.sftpServer = (opts, fn) => {
             sftpStream.status(reqid, STATUS_CODE.OK);
           });
           sftpStream.on('RENAME', (reqid, oldPath, newPath) => {
+            const relPath = path.relative('', newPath);
+            if (relPath.startsWith('..')) {
+              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              return;
+            }
             renamedFiles[oldPath] = newPath;
             sftpStream.status(reqid, STATUS_CODE.OK);
           });

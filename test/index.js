@@ -5,7 +5,8 @@
 const assert = require('assert');
 const expect = require('chai').expect;
 const SFTP = require('../sftpServer');
-const Client = require('ssh2');
+const ssh2 = require('ssh2');
+const STATUS_CODE = ssh2.SFTP_STATUS_CODE;
 
 const connOpts = {
   host: '127.0.0.1',
@@ -33,7 +34,7 @@ const port = 4000;
 
 describe('Mock SFTP Server', () => {
   let  mockServer;
-  const client = new Client();
+  const client = new ssh2();
   let sftp;
 
   before(done => {
@@ -200,10 +201,18 @@ describe('Mock SFTP Server', () => {
   });
 
   describe('rename', () => {
+    it('should error when asked to rename to a parent directory', done => {
+      sftp.rename('kung/bar', '../foo', err => {
+        expect(err.code).to.equal(STATUS_CODE.FAILURE);
+        expect(mockServer.getRenamedFiles()).to.deep.equal({});
+        done();
+      });
+    });
+
     it('should rename a remote file without error', done => {
-      sftp.rename('/kung/bar', '/kung/foo', err => {
+      sftp.rename('kung/foo/bar', 'kung/bar', err => {
         expect(err).to.not.exist;
-        expect(mockServer.getRenamedFiles()).to.deep.equal({'/kung/bar': '/kung/foo'});
+        expect(mockServer.getRenamedFiles()).to.deep.equal({'kung/foo/bar': 'kung/bar'});
         done();
       });
     });
