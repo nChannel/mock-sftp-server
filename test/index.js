@@ -1,5 +1,3 @@
-// TODO: restart server for each test
-
 'use strict';
 
 const assert = require('assert');
@@ -16,19 +14,18 @@ const connOpts = {
   debug: false
 };
 
-const listing = [
-  {
-    '/foo': [
-      { filename: 'bar', attrs: {} },
-      { filename: 'not.afile', attrs: {} }
-    ]
+const initialStructure = {
+  'foo': {
+    'bar': true,
+    'baz': {
+    }
   },
-  {
-    '/bar': [
-      { filename: 'foo', attrs: {} }
-    ]
+  'corge': {
+    'frotz': {
+      'grault': true
+    }
   }
-];
+};
 const debug = false;
 const port = 4000;
 
@@ -38,7 +35,7 @@ describe('Mock SFTP Server', () => {
   let sftp;
 
   before(done => {
-    mockServer = SFTP.sftpServer({ listing, debug, port }, done);
+    mockServer = SFTP.sftpServer({ initialStructure, debug, port }, done);
   });
 
   after(done => {
@@ -53,12 +50,14 @@ describe('Mock SFTP Server', () => {
 
   describe('computedFileSize', () => {
     it('should throw intelligible error when no file has been sent to path', () => {
+      mockServer.reset();
       expect(() => mockServer.computedFileSize('/frobotz')).to.throw(RangeError, "never sent");
     });
   });
 
   describe('computedSha256', () => {
     it('should throw intelligible error when no file has been sent to path', () => {
+      mockServer.reset();
       expect(() => mockServer.computedSha256('/frobotz')).to.throw(RangeError, "never sent");
     });
   });
@@ -66,6 +65,7 @@ describe('Mock SFTP Server', () => {
   describe('Connection to mock server', () => {
     let error, connected = false;
     before(done => {
+      mockServer.reset();
       client.connect(connOpts);
 
       client.on('error', err => {
@@ -102,13 +102,31 @@ describe('Mock SFTP Server', () => {
 
   });
 
+  describe('exists', () => {
+    it('should return true for existing files', done => {
+      mockServer.reset();
+      sftp.exists('foo/bar', isExisting => {
+        expect(isExisting).to.equal(true);
+        done();
+      });
+    });
+
+    it('should return false for non-existing files', done => {
+      mockServer.reset();
+      sftp.exists('sir/not/appearing/in/this/scene', isExisting => {
+        expect(isExisting).to.equal(false);
+        done();
+      });
+    });
+  });
+
   describe('fastGet', () => {
     it('should download a file without error', done => {
-      const openedBefore = mockServer.getPathsOpened();
-      sftp.fastGet('/foo', 'bar', err => {
+      mockServer.reset();
+      sftp.fastGet('foo/bar', 'downloaded-bar', err => {
         expect(err).to.not.exist;
-        const openedDuring = mockServer.getPathsOpened().slice(openedBefore.length);
-        expect(openedDuring).to.deep.equal(['/foo']);
+        const openedDuring = mockServer.getPathsOpened();
+        expect(openedDuring).to.deep.equal(['foo/bar']);
         done();
       });
     });
@@ -116,54 +134,96 @@ describe('Mock SFTP Server', () => {
 
   describe('fastPut', () => {
     it('should upload file without error', done => {
-      const openedBefore = mockServer.getPathsOpened();
-      sftp.fastPut(`${process.cwd()}/test/fixtures/bar`, '/spam', err => {
+      mockServer.reset();
+      sftp.fastPut(`${process.cwd()}/test/fixtures/bar`, 'spam', err => {
         expect(err).to.not.exist;
-        const openedDuring = mockServer.getPathsOpened().slice(openedBefore.length);
-        expect(openedDuring).to.deep.equal(['/spam']);
-        expect(mockServer.computedFileSize('/spam')).to.equal(89);
-        expect(mockServer.computedSha256('/spam')).to.equal('065213cd0a07312fc8fac06d75dc09f2b34dfb0824fb241dc34763d811a4114c');
-        done();
+        const openedDuring = mockServer.getPathsOpened();
+        expect(openedDuring).to.deep.equal(['spam']);
+        expect(mockServer.computedFileSize('spam')).to.equal(89);
+        expect(mockServer.computedSha256('spam')).to.equal('065213cd0a07312fc8fac06d75dc09f2b34dfb0824fb241dc34763d811a4114c');
+
+        sftp.exists('spam', isExisting => {
+          expect(isExisting).to.equal(true);
+          done();
+        });
       });
     });
   });
 
   describe('readdir', () => {
-    let error, results;
-    before(done => {
-      sftp.readdir('/foo', (err, list) => {
-        error = err;
-        results = list;
+    it('should read an existing directory', done => {
+      mockServer.reset();
+      sftp.readdir('foo', (error, list) => {
+        expect(error).to.not.exist;
+        expect(list.length).to.equal(2);
+        expect(list[0].filename).to.equal("bar");
+        expect(list[1].filename).to.equal("baz");
         done();
       });
     });
 
-    it('should read a directory without issue', done => {
-      expect(error).to.not.exist;
-      done();
+    it('should read an existing directory with trailing slash', done => {
+      mockServer.reset();
+      sftp.readdir('foo/', (error, list) => {
+        expect(error).to.not.exist;
+        expect(list.length).to.equal(2);
+        expect(list[0].filename).to.equal("bar");
+        expect(list[1].filename).to.equal("baz");
+        done();
+      });
     });
 
-    it('should return results', done => {
-      expect(results).to.exist;
-      done();
+    it('should fail to read a non-existent directory', done => {
+      mockServer.reset();
+      sftp.readdir('notThere', (error, list) => {
+        expect(error).to.exist;
+        expect(list).to.not.exist;
+        done();
+      });
+    });
+
+    it('should read a nested directories', done => {
+      mockServer.reset();
+      sftp.readdir('corge/frotz/', (error, list) => {
+        expect(error).to.not.exist;
+        expect(list.length).to.equal(1);
+        expect(list[0].filename).to.equal("grault");
+        done();
+      });
+    });
+
+    it('should read top-level directory', done => {
+      mockServer.reset();
+      sftp.readdir('', (error, list) => {
+        expect(error).to.not.exist;
+        expect(list.length).to.equal(2);
+        expect(list[0].filename).to.equal("foo");
+        expect(list[1].filename).to.equal("corge");
+        done();
+      });
     });
   });
 
   describe('mkdir', () => {
     it('should succeed when passed valid path', done => {
-      const numCreatedBefore = mockServer.getDirectoriesCreated().length;
+      mockServer.reset();
       sftp.mkdir('quux', err => {
         expect(err).to.not.exist;
-        const createdDuring = mockServer.getDirectoriesCreated().slice(numCreatedBefore);
+        const createdDuring = mockServer.getDirectoriesCreated();
         expect(createdDuring).to.deep.equal(['quux']);
-        done();
+
+        sftp.readdir('quux', (error, list) => {
+          expect(error).to.not.exist;
+          expect(list.length).to.equal(0);
+          done();
+        });
       });
     });
     it('should return error when passed zero-length string', done => {
-      const numCreatedBefore = mockServer.getDirectoriesCreated().length;
+      mockServer.reset();
       sftp.mkdir('', err => {
         expect(err).to.exist;
-        const createdDuring = mockServer.getDirectoriesCreated().slice(numCreatedBefore);
+        const createdDuring = mockServer.getDirectoriesCreated();
         expect(createdDuring).to.deep.equal([]);
         done();
       });
@@ -171,20 +231,24 @@ describe('Mock SFTP Server', () => {
   });
 
   describe('rmdir', () => {
-    it('should succeed when passed valid path', done => {
-      const numRemovedBefore = mockServer.getDirectoriesRemoved().length;
-      sftp.rmdir('flux', err => {
+    it('should succeed when passed empty directory', done => {
+      mockServer.reset();
+      sftp.rmdir('foo/baz', err => {
         expect(err).to.not.exist;
-        const removedDuring = mockServer.getDirectoriesRemoved().slice(numRemovedBefore);
-        expect(removedDuring).to.deep.equal(['flux']);
-        done();
+        const removedDuring = mockServer.getDirectoriesRemoved();
+        expect(removedDuring).to.deep.equal(['foo/baz']);
+
+        sftp.exists('foo/baz', isExisting => {
+          expect(isExisting).to.equal(false);
+          done();
+        });
       });
     });
     it('should return error when passed zero-length string', done => {
-      const numRemovedBefore = mockServer.getDirectoriesRemoved().length;
+      mockServer.reset();
       sftp.rmdir('', err => {
         expect(err).to.exist;
-        const removedDuring = mockServer.getDirectoriesRemoved().slice(numRemovedBefore);
+        const removedDuring = mockServer.getDirectoriesRemoved();
         expect(removedDuring).to.deep.equal([]);
         done();
       });
@@ -193,27 +257,64 @@ describe('Mock SFTP Server', () => {
 
   describe('unlink', () => {
     it('should remove a remote file without error', done => {
-      sftp.unlink('/foo/bar', err => {
+      mockServer.reset();
+      sftp.unlink('foo/bar', err => {
         expect(err).to.not.exist;
-        done();
+
+        sftp.exists('foo/bar', isExisting => {
+          expect(isExisting).to.equal(false);
+          done();
+        });
       });
     });
   });
 
   describe('rename', () => {
     it('should error when asked to rename to a parent directory', done => {
-      sftp.rename('kung/bar', '../foo', err => {
+      mockServer.reset();
+      sftp.rename('corge/frotz/grault', '../grault', err => {
         expect(err.code).to.equal(STATUS_CODE.FAILURE);
         expect(mockServer.getRenamedFiles()).to.deep.equal({});
-        done();
+
+        sftp.exists('corge/frotz/grault', isExisting => {
+          expect(isExisting).to.equal(true);
+          sftp.exists('corge/grault', isExisting => {
+            expect(isExisting).to.equal(false);
+            done();
+          });
+        });
       });
     });
 
     it('should rename a remote file without error', done => {
-      sftp.rename('kung/foo/bar', 'kung/bar', err => {
+      mockServer.reset();
+      sftp.rename('corge/frotz/grault', 'corge/grault', err => {
         expect(err).to.not.exist;
-        expect(mockServer.getRenamedFiles()).to.deep.equal({'kung/foo/bar': 'kung/bar'});
-        done();
+        expect(mockServer.getRenamedFiles()).to.deep.equal({'corge/frotz/grault': 'corge/grault'});
+
+        sftp.exists('corge/frotz/grault', isExisting => {
+          expect(isExisting).to.equal(false);
+          sftp.exists('corge/grault', isExisting => {
+            expect(isExisting).to.equal(true);
+            done();
+          });
+        });
+      });
+    });
+
+    it('should error when asked to rename a non-existent file', done => {
+      mockServer.reset();
+      sftp.rename('corge/notThere', 'foo/notThere', err => {
+        expect(err.code).to.equal(STATUS_CODE.FAILURE);
+        expect(mockServer.getRenamedFiles()).to.deep.equal({});
+
+        sftp.exists('corge/notThere', isExisting => {
+          expect(isExisting).to.equal(false);
+          sftp.exists('foo/notThere', isExisting => {
+            expect(isExisting).to.equal(false);
+            done();
+          });
+        });
       });
     });
   });
