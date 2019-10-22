@@ -24,6 +24,10 @@ const initialStructure = {
     'frotz': {
       'grault': true
     }
+  },
+  'outer': {
+    'inner': {
+    }
   }
 };
 const debug = false;
@@ -106,6 +110,14 @@ describe('Mock SFTP Server', () => {
     it('should return true for existing files', done => {
       mockServer.reset();
       sftp.exists('foo/bar', isExisting => {
+        expect(isExisting).to.equal(true);
+        done();
+      });
+    });
+
+    it('should return true for existing directories with trailing slash', done => {
+      mockServer.reset();
+      sftp.exists('foo/baz/', isExisting => {
         expect(isExisting).to.equal(true);
         done();
       });
@@ -196,9 +208,10 @@ describe('Mock SFTP Server', () => {
       mockServer.reset();
       sftp.readdir('', (error, list) => {
         expect(error).to.not.exist;
-        expect(list.length).to.equal(2);
+        expect(list.length).to.equal(3);
         expect(list[0].filename).to.equal("foo");
         expect(list[1].filename).to.equal("corge");
+        expect(list[2].filename).to.equal("outer");
         done();
       });
     });
@@ -213,6 +226,20 @@ describe('Mock SFTP Server', () => {
         expect(createdDuring).to.deep.equal(['quux']);
 
         sftp.readdir('quux', (error, list) => {
+          expect(error).to.not.exist;
+          expect(list.length).to.equal(0);
+          done();
+        });
+      });
+    });
+    it('should succeed when passed valid path with trailing slash', done => {
+      mockServer.reset();
+      sftp.mkdir('greeble/', err => {
+        expect(err).to.not.exist;
+        const createdDuring = mockServer.getDirectoriesCreated();
+        expect(createdDuring).to.deep.equal(['greeble']);
+
+        sftp.readdir('greeble', (error, list) => {
           expect(error).to.not.exist;
           expect(list.length).to.equal(0);
           done();
@@ -241,6 +268,42 @@ describe('Mock SFTP Server', () => {
         sftp.exists('foo/baz', isExisting => {
           expect(isExisting).to.equal(false);
           done();
+        });
+      });
+    });
+    it('should succeed when passed empty directory with trailing slash', done => {
+      mockServer.reset();
+      sftp.rmdir('foo/baz/', err => {
+        expect(err).to.not.exist;
+        const removedDuring = mockServer.getDirectoriesRemoved();
+        expect(removedDuring).to.deep.equal(['foo/baz']);
+
+        sftp.exists('foo/baz', isExisting => {
+          expect(isExisting).to.equal(false);
+          done();
+        });
+      });
+    });
+    it('should succeed when deleting empty hierarchy', done => {
+      mockServer.reset();
+      sftp.rmdir('outer/inner', err => {
+        expect(err).to.not.exist;
+        const removedDuring = mockServer.getDirectoriesRemoved();
+        expect(removedDuring).to.deep.equal(['outer/inner']);
+
+        sftp.exists('outer/inner', isExisting => {
+          expect(isExisting).to.equal(false);
+
+          sftp.rmdir('outer', err => {
+            expect(err).to.not.exist;
+            const removedDuring = mockServer.getDirectoriesRemoved();
+            expect(removedDuring).to.deep.equal(['outer/inner', 'outer']);
+
+            sftp.exists('outer', isExisting => {
+              expect(isExisting).to.equal(false);
+              done();
+            })
+          });
         });
       });
     });

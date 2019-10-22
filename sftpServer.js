@@ -50,6 +50,7 @@ exports.sftpServer = (opts, fn) => {
           let calledReadDir = {};   // per-dirPath
           sftpStream.on('OPENDIR', (reqid, path) => {
             try {
+              path = path.normalize();
               debug(path);
               const structureData = getStructureData(path);
               if (typeof(structureData) !== 'object') {
@@ -165,13 +166,16 @@ exports.sftpServer = (opts, fn) => {
           });
           sftpStream.on('MKDIR', (reqid, path) => {
             try {
-              if (path.length > 0) {
+                path = path.normalize();
+                if (path.length <= 0 || path === '.' || path === '..') {
+                    throw new Error("Can't re-create current directory");
+                }
+                if (path[path.length-1] === '/') {
+                    path = path.slice(0, -1);
+                }
                 setStructureData(path, {});
                 directoriesCreated.push(path);
                 sftpStream.status(reqid, STATUS_CODE.OK);
-              } else {
-                sftpStream.status(reqid, STATUS_CODE.FAILURE);
-              }
             } catch (err) {
               console.error("while creating dir:", err.message);
               sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
@@ -179,23 +183,25 @@ exports.sftpServer = (opts, fn) => {
           });
           sftpStream.on('RMDIR', (reqid, path) => {
             try {
-              if (path.length > 0) {
+                path = path.normalize();
+                if (path.length <= 0 || path === '.' || path === '..') {
+                    throw new Error("Can't remove current directory");
+                }
+                if (path[path.length-1] === '/') {
+                    path = path.slice(0, -1);
+                }
                 // TODO: check that directory is empty
                 try {
-                  const structureData = getStructureData(path);
-                  if (typeof structureData !== 'object') {   // it's a file, not a directory
-                    sftpStream.status(reqid, STATUS_CODE.FAILURE);
-                    return;
-                  }
+                    const structureData = getStructureData(path);
+                    if (typeof structureData !== 'object') {   // it's a file, not a directory
+                        throw new Error("Can't use rmdir to delete file");
+                    }
                 } catch (err) {
-                  // it's okay if the directory doesn't exist
+                    // it's okay if the directory doesn't exist
                 }
                 setStructureData(path, null);
                 directoriesRemoved.push(path);
                 sftpStream.status(reqid, STATUS_CODE.OK);
-              } else {
-                sftpStream.status(reqid, STATUS_CODE.FAILURE);
-              }
             } catch (err) {
               console.error("while removing directory:", err.message);
               sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
@@ -230,6 +236,7 @@ exports.sftpServer = (opts, fn) => {
           });
           sftpStream.on('REMOVE', (reqid, path) => {
             try {
+              path = path.normalize();
               try {
                 const structureData = getStructureData(path);
                 if (typeof structureData === 'object') {
@@ -248,7 +255,9 @@ exports.sftpServer = (opts, fn) => {
           });
           sftpStream.on('RENAME', (reqid, oldPath, newPath) => {
             try {
-              const relPath = path.relative('', newPath);
+                oldPath = oldPath.normalize();
+                newPath = newPath.normalize();
+                const relPath = path.relative('', newPath);
               if (relPath.startsWith('..')) {
                 sftpStream.status(reqid, STATUS_CODE.FAILURE);
                 return;
@@ -320,7 +329,7 @@ exports.sftpServer = (opts, fn) => {
 
           function onSTAT(reqid, path) {
             try {
-              const structureData = getStructureData(path);
+              const structureData = getStructureData(path.normalize());
 
               let mode = constants.S_IFREG; // Regular file
               mode |= constants.S_IRWXU; // read, write, execute for user
