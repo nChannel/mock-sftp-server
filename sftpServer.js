@@ -59,7 +59,8 @@ exports.sftpServer = (opts, fn) => {
               debug(handle);
               sftpStream.handle(reqid, handle);
             } catch (err) {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              console.error("while opening dir:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
           sftpStream.on('OPEN', (reqid, filePath, flags, attrs) => {
@@ -106,29 +107,40 @@ exports.sftpServer = (opts, fn) => {
                 computedFileProperties[filePath].size = size;
               }).pipe(devnull())
             } catch (err) {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              console.error("while opening file:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
           sftpStream.on('WRITE', (reqid, handle, offset, data) => {
-            if (handle.length !== 4 || !openFiles[handle.readUInt32BE(0, true)])
-              return sftpStream.status(reqid, STATUS_CODE.FAILURE);
-            const canWriteMore = checksumS.write(data, err => {
-              sftpStream.status(reqid, STATUS_CODE.OK);
-            });
-             const inspected = require('util').inspect(data);
-            debug('Write to file at offset %d: %s', offset, inspected);
+            try {
+              if (handle.length !== 4 || !openFiles[handle.readUInt32BE(0, true)])
+                return sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              const canWriteMore = checksumS.write(data, err => {
+                sftpStream.status(reqid, STATUS_CODE.OK);
+              });
+              const inspected = require('util').inspect(data);
+              debug('Write to file at offset %d: %s', offset, inspected);
+            } catch (err) {
+              console.error("while writing file:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
+            }
           });
           sftpStream.on('READ', (reqid, handle, offset, length) => {
-            if (handle.length !== 4 || !openFiles[handle.readUInt32BE(0, true)])
-              return sftpStream.status(reqid, STATUS_CODE.FAILURE);
-            let state = {};
-            if (state.read)
-              sftpStream.status(reqid, STATUS_CODE.EOF);
-            else {
-              debug(state);
-              state.read = true;
-              sftpStream.data(reqid, 'bar');
-              debug('Read from file at offset %d, length %d', offset, length);
+            try {
+              if (handle.length !== 4 || !openFiles[handle.readUInt32BE(0, true)])
+                return sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              let state = {};
+              if (state.read)
+                sftpStream.status(reqid, STATUS_CODE.EOF);
+              else {
+                debug(state);
+                state.read = true;
+                sftpStream.data(reqid, 'bar');
+                debug('Read from file at offset %d, length %d', offset, length);
+              }
+            } catch (err) {
+              console.error("while reading file:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
           sftpStream.on('READDIR', (reqid, handle) => {
@@ -147,66 +159,92 @@ exports.sftpServer = (opts, fn) => {
                 sftpStream.status(reqid, STATUS_CODE.EOF);
               }
             } catch (err) {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              console.error("while reading dir:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
           sftpStream.on('MKDIR', (reqid, path) => {
-            if (path.length > 0) {
-              setStructureData(path, {});
-              directoriesCreated.push(path);
-              sftpStream.status(reqid, STATUS_CODE.OK);
-            } else {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+            try {
+              if (path.length > 0) {
+                setStructureData(path, {});
+                directoriesCreated.push(path);
+                sftpStream.status(reqid, STATUS_CODE.OK);
+              } else {
+                sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              }
+            } catch (err) {
+              console.error("while creating dir:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
           sftpStream.on('RMDIR', (reqid, path) => {
-            if (path.length > 0) {
-              // TODO: check that directory is empty
-              try {
-                const structureData = getStructureData(path);
-                if (typeof structureData !== 'object') {   // it's a file, not a directory
-                  sftpStream.status(reqid, STATUS_CODE.FAILURE);
-                  return;
+            try {
+              if (path.length > 0) {
+                // TODO: check that directory is empty
+                try {
+                  const structureData = getStructureData(path);
+                  if (typeof structureData !== 'object') {   // it's a file, not a directory
+                    sftpStream.status(reqid, STATUS_CODE.FAILURE);
+                    return;
+                  }
+                } catch (err) {
+                  // it's okay if the directory doesn't exist
                 }
-              } catch (err) {
-                // it's okay if the directory doesn't exist
+                setStructureData(path, null);
+                directoriesRemoved.push(path);
+                sftpStream.status(reqid, STATUS_CODE.OK);
+              } else {
+                sftpStream.status(reqid, STATUS_CODE.FAILURE);
               }
-              setStructureData(path, null);
-              directoriesRemoved.push(path);
-              sftpStream.status(reqid, STATUS_CODE.OK);
-            } else {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+            } catch (err) {
+              console.error("while removing directory:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
           sftpStream.on('REALPATH', (reqid, path) => {
-            const name = [{
-              filename: '/tmp/foo.txt',
-              longname: '-rwxrwxrwx 1 foo foo 3 Dec 8 2009 foo.txt',
-              attrs: {}
-            }];
-            sftpStream.name(reqid, name);
+            try {
+              const name = [{
+                filename: '/tmp/foo.txt',
+                longname: '-rwxrwxrwx 1 foo foo 3 Dec 8 2009 foo.txt',
+                attrs: {}
+              }];
+              sftpStream.name(reqid, name);
+            } catch (err) {
+              console.error("while reading realpath:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
+            }
           });
           sftpStream.on('STAT', onSTAT);
           sftpStream.on('LSTAT', onSTAT);
           sftpStream.on('CLOSE', (reqid, handle) => {
-            if (checksumS) {
-              checksumS.end();
+            try {
+              if (checksumS) {
+                checksumS.end();
+              }
+              sftpStream.status(reqid, STATUS_CODE.OK);
+              debug('Closing file');
+            } catch (err) {
+              console.error("while closing file:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
-            sftpStream.status(reqid, STATUS_CODE.OK);
-            debug('Closing file');
           });
           sftpStream.on('REMOVE', (reqid, path) => {
             try {
-              const structureData = getStructureData(path);
-              if (typeof structureData === 'object') {
-                sftpStream.status(reqid, STATUS_CODE.FAILURE);
-                return;
+              try {
+                const structureData = getStructureData(path);
+                if (typeof structureData === 'object') {
+                  sftpStream.status(reqid, STATUS_CODE.FAILURE);
+                  return;
+                }
+              } catch (err) {
+                // it's okay if the file doesn't exist
               }
+              setStructureData(path, false);
+              sftpStream.status(reqid, STATUS_CODE.OK);
             } catch (err) {
-              // it's okay if the file doesn't exist
+              console.error("while removing file:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
-            setStructureData(path, false);
-            sftpStream.status(reqid, STATUS_CODE.OK);
           });
           sftpStream.on('RENAME', (reqid, oldPath, newPath) => {
             try {
@@ -221,7 +259,8 @@ exports.sftpServer = (opts, fn) => {
               renamedFiles[oldPath] = newPath;
               sftpStream.status(reqid, STATUS_CODE.OK);
             } catch (err) {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              console.error("while renaming:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           });
 
@@ -246,6 +285,9 @@ exports.sftpServer = (opts, fn) => {
             const fileName = names[names.length-1];
             let directoryPath = names.slice(0, names.length-1).join('/');
             const directoryData = getStructureData(directoryPath);
+            if (typeof directoryData !== 'object') {
+              throw new Error(directoryPath + " is a file, not directory");
+            }
             if (data !== false) {
               directoryData[fileName] = data;
             } else {
@@ -293,7 +335,8 @@ exports.sftpServer = (opts, fn) => {
                 mtime: Date.now()
               });
             } catch (err) {
-              sftpStream.status(reqid, STATUS_CODE.FAILURE);
+              console.error("while reading stats:", err.message);
+              sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
             }
           }
 
