@@ -46,6 +46,7 @@ exports.sftpServer = (opts, fn) => {
           debug('Client SFTP session');
           let openFiles = [];
           let handleCount = 0;
+          const bytesRead = [];
           const sftpStream = accept();
           let calledReadDir = {};   // per-dirPath
           sftpStream.on('OPENDIR', (reqid, path) => {
@@ -95,6 +96,7 @@ exports.sftpServer = (opts, fn) => {
               const handle = Buffer.alloc(4);
               const handleNum = handleCount;
               openFiles[handleNum] = true;
+              bytesRead[handleNum] = 0;
               pathsOpened.push(filePath);
               computedFileProperties[filePath] = {};
               handle.writeUInt32BE(handleCount++, 0, true);
@@ -128,15 +130,15 @@ exports.sftpServer = (opts, fn) => {
           });
           sftpStream.on('READ', (reqid, handle, offset, length) => {
             try {
-              if (handle.length !== 4 || !openFiles[handle.readUInt32BE(0, true)])
+              const handleNum = handle.readUInt32BE(0, true);
+              if (handle.length !== 4 || !openFiles[handleNum])
                 return sftpStream.status(reqid, STATUS_CODE.FAILURE);
-              let state = {};
-              if (state.read)
+              const chunk = Buffer.from('bar', 'utf8');
+              if (bytesRead[handleNum] > chunk.length)   // for now, only return two chunks
                 sftpStream.status(reqid, STATUS_CODE.EOF);
               else {
-                debug(state);
-                state.read = true;
-                sftpStream.data(reqid, 'bar');
+                bytesRead[handleNum] += chunk.length;
+                sftpStream.data(reqid, chunk);
                 debug('Read from file at offset %d, length %d', offset, length);
               }
             } catch (err) {

@@ -132,17 +132,44 @@ describe('Mock SFTP Server', () => {
     });
   });
 
-  describe('fastGet', () => {
+  describe('reading', () => {
+    it('should error when downloading a non-existing file', done => {
+      mockServer.reset();
+      sftp.fastGet('not-there', 'test/downloads/downloaded-not-there', err => {
+        expect(err).to.exist;
+        const openedDuring = mockServer.getPathsOpened();
+        expect(openedDuring).to.deep.equal([]);
+        done();
+      });
+    });
+
     it('should download a file without error', done => {
       mockServer.reset();
-      sftp.fastGet('foo/bar', 'downloaded-bar', err => {
+      sftp.fastGet('foo/bar', 'test/downloads/downloaded-bar', err => {
         expect(err).to.not.exist;
         const openedDuring = mockServer.getPathsOpened();
         expect(openedDuring).to.deep.equal(['foo/bar']);
         done();
       });
     });
+
+    it('should stream data from file that exists', done => {
+      mockServer.reset();
+      let totalBytes = 0;
+      const stream = sftp.createReadStream('foo/bar', {encoding: 'utf8'});
+      stream.on('data', chunk => {
+        totalBytes += chunk.length;
+        expect(chunk).to.equal("bar");
+      });
+      stream.on('end', () => {
+        expect(totalBytes).to.equal(6);
+        const openedDuring = mockServer.getPathsOpened();
+        expect(openedDuring).to.deep.equal(['foo/bar']);
+        done();
+      })
+    });
   });
+
 
   describe('fastPut', () => {
     it('should upload file without error', done => {
