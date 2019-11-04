@@ -46,7 +46,8 @@ exports.sftpServer = (opts, fn) => {
           debug('Client SFTP session');
           let openFiles = [];
           let handleCount = 0;
-          const bytesRead = [];
+          const totalBytesRead = [];   // per handle
+          const fileDescriptors = [];   // per handle
           const sftpStream = accept();
           let calledReadDir = {};   // per-dirPath
           sftpStream.on('OPENDIR', (reqid, path) => {
@@ -69,13 +70,14 @@ exports.sftpServer = (opts, fn) => {
             try {
               debug('Open');
               filePath = path.normalize(filePath);
+              let structureData;
               const flagsStr = SFTPStream.flagsToString(flags);
               switch (flagsStr) {
                 case 'r':   // file must exist
                 case 'r+':
                 case 'rs+':
-                  const structureData = getStructureData(filePath);
-                  if (structureData !== true) {   // file, not directory
+                  structureData = getStructureData(filePath);
+                  if (typeof(structureData) === 'object') {
                     throw new Error("Can't open directory")
                   }
                  break;
@@ -84,31 +86,41 @@ exports.sftpServer = (opts, fn) => {
                 case 'wx':
                 case 'wx+':
                   try {
-                    const structureData = getStructureData(filePath);
+                    structureData = getStructureData(filePath);
                     throw new Error("file can't already exist");
                   } catch (err) {
                     // success
                   }
                   break;
               }
-              setStructureData(filePath, true);
+              if (! structureData) {
+                setStructureData(filePath, true);
+              }
 
               const handle = Buffer.alloc(4);
               const handleNum = handleCount;
               openFiles[handleNum] = true;
-              bytesRead[handleNum] = 0;
+              totalBytesRead[handleNum] = 0;
               pathsOpened.push(filePath);
               computedFileProperties[filePath] = {};
               handle.writeUInt32BE(handleCount++, 0, true);
-              sftpStream.handle(reqid, handle);
-              debug('Opening file for read or write');
-              checksumS = checksumStream({algorithm: 'sha256'});
-              checksumS.on('digest', digest => {
-                computedFileProperties[filePath].sha256 = digest;
-              });
-              checksumS.on('size', size => {
-                computedFileProperties[filePath].size = size;
-              }).pipe(devnull())
+
+              if (typeof structureData === 'string' && flagsStr[0] === 'r') {
+                fs.open(structureData, (err, fd) => {
+                  fileDescriptors[handleNum] = fd;
+                  sftpStream.handle(reqid, handle);
+                });
+              } else {
+                sftpStream.handle(reqid, handle);
+                debug('Opening file for read or write');
+                checksumS = checksumStream({algorithm: 'sha256'});
+                checksumS.on('digest', digest => {
+                  computedFileProperties[filePath].sha256 = digest;
+                });
+                checksumS.on('size', size => {
+                  computedFileProperties[filePath].size = size;
+                }).pipe(devnull());
+              }
             } catch (err) {
               console.error("while opening file:", err.message);
               sftpStream.status(reqid, STATUS_CODE.FAILURE, err.message);
@@ -133,13 +145,28 @@ exports.sftpServer = (opts, fn) => {
               const handleNum = handle.readUInt32BE(0, true);
               if (handle.length !== 4 || !openFiles[handleNum])
                 return sftpStream.status(reqid, STATUS_CODE.FAILURE);
-              const chunk = Buffer.from('bar', 'utf8');
-              if (bytesRead[handleNum] > chunk.length)   // for now, only return two chunks
-                sftpStream.status(reqid, STATUS_CODE.EOF);
-              else {
-                bytesRead[handleNum] += chunk.length;
-                sftpStream.data(reqid, chunk);
-                debug('Read from file at offset %d, length %d', offset, length);
+              if (fileDescriptors[handleNum]) {
+                const buffer = Buffer.alloc(length);
+                fs.read(fileDescriptors[handleNum], buffer, 0, length, offset, (err, bytesRead, buf) => {
+                  if (err) {
+                    sftpStream.status(reqid, STATUS_CODE.FAILURE);
+                  } else if (bytesRead === 0) {
+                    sftpStream.status(reqid, STATUS_CODE.EOF);
+                  } else {
+                    totalBytesRead[handleNum] += bytesRead;
+                    const chunk = buf.slice(0, bytesRead);
+                    sftpStream.data(reqid, chunk);
+                  }
+                });
+              } else {
+                const chunk = Buffer.from('bar', 'utf8');
+                if (totalBytesRead[handleNum] > chunk.length)   // for now, only return two chunks
+                  sftpStream.status(reqid, STATUS_CODE.EOF);
+                else {
+                  totalBytesRead[handleNum] += chunk.length;
+                  sftpStream.data(reqid, chunk);
+                  debug('Read from file at offset %d, length %d', offset, length);
+                }
               }
             } catch (err) {
               console.error("while reading file:", err.message);

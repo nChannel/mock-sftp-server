@@ -18,7 +18,8 @@ const initialStructure = {
   'foo': {
     'bar': true,
     'baz': {
-    }
+    },
+    'rain': 'test/fixtures/rain'
   },
   'corge': {
     'frotz': {
@@ -153,21 +154,37 @@ describe('Mock SFTP Server', () => {
       });
     });
 
-    it('should stream data from file that exists', done => {
-      mockServer.reset();
-      let totalBytes = 0;
-      const stream = sftp.createReadStream('foo/bar', {encoding: 'utf8'});
-      stream.on('data', chunk => {
-        totalBytes += chunk.length;
-        expect(chunk).to.equal("bar");
+      it('should stream data from mock file that exists', done => {
+          mockServer.reset();
+          let totalBytes = 0;
+          const stream = sftp.createReadStream('foo/bar', {encoding: 'utf8'});
+          stream.on('data', chunk => {
+              totalBytes += chunk.length;
+              expect(chunk).to.equal("bar");
+          });
+          stream.on('end', () => {
+              expect(totalBytes).to.equal(6);
+              const openedDuring = mockServer.getPathsOpened();
+              expect(openedDuring).to.deep.equal(['foo/bar']);
+              done();
+          });
       });
-      stream.on('end', () => {
-        expect(totalBytes).to.equal(6);
-        const openedDuring = mockServer.getPathsOpened();
-        expect(openedDuring).to.deep.equal(['foo/bar']);
-        done();
-      })
-    });
+
+      it('should stream data from real file that exists', done => {
+          mockServer.reset();
+          const strings = [];
+          const stream = sftp.createReadStream('foo/rain', {encoding: 'utf8'});
+          stream.on('data', chunk => {
+              strings.push(chunk);
+          });
+          stream.on('end', () => {
+              const text = strings.join('');
+              expect(text).to.equal("The rain in Spain stays mainly in the plain.");
+              const openedDuring = mockServer.getPathsOpened();
+              expect(openedDuring).to.deep.equal(['foo/rain']);
+              done();
+          });
+      });
   });
 
 
@@ -194,9 +211,10 @@ describe('Mock SFTP Server', () => {
       mockServer.reset();
       sftp.readdir('foo', (error, list) => {
         expect(error).to.not.exist;
-        expect(list.length).to.equal(2);
+        expect(list.length).to.equal(3);
         expect(list[0].filename).to.equal("bar");
         expect(list[1].filename).to.equal("baz");
+        expect(list[2].filename).to.equal("rain");
         done();
       });
     });
@@ -205,9 +223,10 @@ describe('Mock SFTP Server', () => {
       mockServer.reset();
       sftp.readdir('foo/', (error, list) => {
         expect(error).to.not.exist;
-        expect(list.length).to.equal(2);
+        expect(list.length).to.equal(3);
         expect(list[0].filename).to.equal("bar");
         expect(list[1].filename).to.equal("baz");
+        expect(list[2].filename).to.equal("rain");
         done();
       });
     });
