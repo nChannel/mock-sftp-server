@@ -136,7 +136,7 @@ describe('Mock SFTP Server', () => {
   describe('reading', () => {
     it('should error when downloading a non-existing file', done => {
       mockServer.reset();
-      sftp.fastGet('not-there', 'test/downloads/downloaded-not-there', err => {
+      sftp.fastGet('not-there', 'test/downloaded-not-there', err => {
         expect(err).to.exist;
         const openedDuring = mockServer.getPathsOpened();
         expect(openedDuring).to.deep.equal([]);
@@ -146,7 +146,7 @@ describe('Mock SFTP Server', () => {
 
     it('should download a file without error', done => {
       mockServer.reset();
-      sftp.fastGet('foo/bar', 'test/downloads/downloaded-bar', err => {
+      sftp.fastGet('foo/bar', 'test/downloaded-bar', err => {
         expect(err).to.not.exist;
         const openedDuring = mockServer.getPathsOpened();
         expect(openedDuring).to.deep.equal(['foo/bar']);
